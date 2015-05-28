@@ -13,6 +13,7 @@ import Text.XML.Cursor (Cursor,
                         fromDocument, 
                         child, descendant,
                         ($//), (&|), (&/), (&//), (>=>), (&.//))
+import System.FilePath.Posix (splitFileName)
 
 type Url = String
 
@@ -54,15 +55,25 @@ readSingleArticle url = readWebPage url
                         >>= return . getArticle
                         >>= return . concat
 
-processSite :: Url -> IO ()
-processSite url = do articles <- readPage url
+-- Get the list of /page/n/ to get summaries
+list_of_pages :: Url -> [Url]
+list_of_pages url = map (appendUrl url) [1..30] -- Make this changeable, of course
+    where appendUrl url n = url ++ "/page/" ++ (show n) ++ "/"
+
+-- Process a single summary
+processPage :: Url -> IO ()
+processPage url = do articles <- readPage url
                      read_articles <- readAllArticles articles
                      let url_and_content = zip articles read_articles
                      mapM_ (uncurry writeArticle) url_and_content
 
+processSite :: Url -> IO ()
+processSite url = mapM_ processPage (list_of_pages url)
+
 writeArticle :: FilePath -> String -> IO ()
-writeArticle fp = writeFile prefix_fp
-    where prefix_fp = "output/" ++ fp
+writeArticle fp = writeFile destination
+    where destination = "output/" ++ postfix_fp
+          postfix_fp = snd . splitFileName $ fp
 
 main :: IO ()
 main = do args <- getArgs
