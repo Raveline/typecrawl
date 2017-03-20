@@ -72,7 +72,7 @@ processSite :: Url -> Int -> IO [Post]
 processSite url steps = anaScrap readPageAndPosts goOnScrapping (Scrap 1 (Just url))
   where
     goOnScrapping :: ScrapingStep -> Bool
-    goOnScrapping (Scrap step (Just url)) = step < steps
+    goOnScrapping (Scrap step (Just _)) = step > steps
     goOnScrapping _ = False
 
 -- | Bah, ugly !
