@@ -1,14 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import qualified Data.Text as T
-import Control.Applicative ((<$>), (<*>))
-import Control.Monad (replicateM)
 import Data.Maybe (fromMaybe, catMaybes)
 import System.Environment
-import Text.HTML.Scalpel (scrapeURL, chroot, chroots, (//), (@:),
-                          attr, attrs, Scraper(..), hasClass,
-                          text, texts, anySelector, position)
-import System.FilePath.Posix (splitFileName)
+import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
+                          attr, attrs, Scraper, hasClass,
+                          text, anySelector)
 
 type Url = String
 
