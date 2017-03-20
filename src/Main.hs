@@ -8,16 +8,12 @@ import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
                           text, anySelector)
 
 type Url = String
+type Title = T.Text
+type Content = T.Text
 
-data Post = Post {
-  title :: T.Text,
-  content :: T.Text
-} deriving (Show)
+data Post = Post Title Content deriving (Show)
 
-data ScrapingStep = Scrap {
-  step :: Int,
-  url :: Maybe String
-}
+data ScrapingStep = Scrap Int (Maybe String) deriving (Show)
 
 -- | Get all the links on a page
 getLinks :: Url -> IO (Maybe [Url])
