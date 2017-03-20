@@ -1,89 +1,101 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import qualified Data.Text as T
+import Control.Applicative ((<$>), (<*>))
+import Control.Monad (replicateM)
+import Data.Maybe (fromMaybe, catMaybes)
 import System.Environment
-import Network.HTTP.Conduit
-import qualified Data.ByteString.Lazy as L
-import Text.HTML.DOM (parseLBS)
-import Text.XML.Cursor (Cursor, 
-                        attribute,
-                        attributeIs,
-                        content,
-                        element, 
-                        fromDocument, 
-                        child, descendant,
-                        ($//), (&|), (&/), (&//), (>=>), (&.//))
+import Text.HTML.Scalpel (scrapeURL, chroot, chroots, (//), (@:),
+                          attr, attrs, Scraper(..), hasClass,
+                          text, texts, anySelector, position)
 import System.FilePath.Posix (splitFileName)
 
 type Url = String
 
+data Post = Post {
+  title :: T.Text,
+  content :: T.Text
+} deriving (Show)
+
+data ScrapingStep = Scrap {
+  step :: Int,
+  url :: Maybe String
+}
+
 -- | Get all the links on a page
-getLinks :: Cursor -> [String]
-getLinks nodes = map T.unpack $ nodes $// extractLinks &| extractUrl
+getLinks :: Url -> IO (Maybe [Url])
+getLinks url = scrapeURL url extractPostLinks
 
--- | Parse a list of articles to get each of their URL.
--- This means getting in the "alpha-inner" div, then get
--- all the h3, and then get the <a> href value.
-extractLinks :: Cursor -> [Cursor]
-extractLinks = element "h3" &/ element "a"
+-- | On a standard typepad-like blog, URL are
+-- inside h3 blocks (post titles). This Scraper
+-- extracts every available link on a page.
+extractPostLinks :: Scraper String [Url]
+extractPostLinks =  attrs "href" $ ("h3" // "a")
 
--- | Get the attribute "href" of a cursor
-extractUrl :: Cursor -> T.Text
-extractUrl = T.concat . attribute "href"
+-- | Typepad blogs typically paginates entries. Pagination links
+-- to the next page are available in spans with the "pager-right" class.
+nextLink :: Scraper String Url
+nextLink = attr "href" $ ("span" @: [hasClass "pager-right"] // "a")
 
 -- | Read a single article on a single page
-getArticle :: Cursor -> [String]
-getArticle nodes = map T.unpack $ nodes $// extractArticle &| extractContent
+getArticle :: Url -> IO (Maybe Post)
+getArticle articleUrl = scrapeURL articleUrl extractArticle
 
-extractArticle :: Cursor -> [Cursor]
-extractArticle = element "div"
-                 >=> attributeIs "class" "entry-body"
-                 >=> descendant
+extractArticle :: Scraper String Post
+extractArticle = do
+  title <- extractTitle
+  content <- extractArticle
+  return $ Post (T.pack title) (T.unlines . map T.pack $ content)
+  where
+    extractTitle :: Scraper String String
+    extractTitle = text $ "h3" @: [hasClass "entry-header"]
+    extractArticle :: Scraper String [String]
+    -- Note: this will mess up ordering if there are inner elements.
+    -- Typical bug include this case :
+    -- <div class="entry-body"><p>p1</p><p>p2</p><blockquote><p>q1</p></blockquote><p>p3</p>
+    -- Here, you'd expect p1-p2-q1-p3. What you'll get is : p1-p2-p3-q1
+    -- I'm unsure about what to do : lookup Scalpel and see why, or fix with a <|> solution.
+    -- Or maybe this will be fixed once I've decided  on the output, since I might take
+    -- HTML on anySelector rather than text on "p" only.
+    extractArticle = chroots ("div" @: [hasClass "entry-body"] // "p") (text anySelector)
 
-extractContent :: Cursor -> T.Text
-extractContent = T.concat . content 
+-- | Anamorphism for scrapping
+anaScrap :: (ScrapingStep -> IO ([Post], ScrapingStep))
+         -> (ScrapingStep -> Bool)
+         -> ScrapingStep
+         -> IO [Post]
+anaScrap unspool finished state =
+  if finished state
+     then return []
+     else do
+      -- value :: [Post]
+      (value, state') <- unspool state
+      -- new :: [Post]
+      new <- anaScrap unspool finished state'
+      return $ value ++ new
 
-readPage :: Url -> IO [String]
-readPage url = readWebPage url 
-               >>= return . getLinks
+readPageAndPosts :: ScrapingStep -> IO ([Post], ScrapingStep)
+readPageAndPosts (Scrap n (Just url)) = do
+  postsURL <- getLinks url
+  posts <- mapM getArticle (fromMaybe [] postsURL)
+  next <- scrapeURL url nextLink
+  return (catMaybes posts, Scrap (n+1) next)
+readPageAndPosts (Scrap n _) = return $ ([], Scrap (n+1) Nothing)
 
-readAllArticles :: [Url] -> IO [String]
-readAllArticles url = mapM readSingleArticle url
+processSite :: Url -> Int -> IO [Post]
+processSite url steps = anaScrap readPageAndPosts goOnScrapping (Scrap 1 (Just url))
+  where
+    goOnScrapping :: ScrapingStep -> Bool
+    goOnScrapping (Scrap step (Just url)) = step < steps
+    goOnScrapping _ = False
 
-readSingleArticle :: Url -> IO String
-readSingleArticle url = readWebPage url 
-                        >>= return . getArticle
-                        >>= return . concat
-
--- Get the list of /page/n/ to get summaries
-list_of_pages :: Url -> [Url]
-list_of_pages url = map (appendUrl url) [1..30] -- Make this changeable, of course
-    where appendUrl url n = url ++ "/page/" ++ (show n) ++ "/"
-
--- Process a single summary
-processPage :: Url -> IO ()
-processPage url = do articles <- readPage url
-                     read_articles <- readAllArticles articles
-                     let url_and_content = zip articles read_articles
-                     mapM_ (uncurry writeArticle) url_and_content
-
-processSite :: Url -> IO ()
-processSite url = mapM_ processPage (list_of_pages url)
-
-writeArticle :: FilePath -> String -> IO ()
-writeArticle fp = writeFile destination
-    where destination = "output/" ++ postfix_fp
-          postfix_fp = snd . splitFileName $ fp
-
+-- | Bah, ugly !
+-- TODO: use cmdlib or something so I don't barf
+-- everytime I see these lines.
 main :: IO ()
 main = do args <- getArgs
           case args of
             []  -> error "Enter the base URL of a typepad blog."
-            [x] -> processSite x
+            [url] -> processSite url 1 >>= print
+            [url, profound] -> processSite url (read profound) >>= print
             _   -> error "Too many arguments."
-
--- | Read a HTML page and return a Text.XML.Cursor on it
-readWebPage :: String -> IO Cursor
-readWebPage url = do putStrLn $ "Reading url " ++ url
-                     res <- simpleHttp url 
-                     return $ fromDocument $ parseLBS res
