@@ -37,20 +37,13 @@ getArticle articleUrl = scrapeURL articleUrl extractArticle
 extractArticle :: Scraper String Post
 extractArticle = do
   title <- extractTitle
-  content <- extractArticle
+  content <- extractContent
   return $ Post (T.pack title) (T.unlines . map T.pack $ content)
   where
     extractTitle :: Scraper String String
     extractTitle = text $ "h3" @: [hasClass "entry-header"]
-    extractArticle :: Scraper String [String]
-    -- Note: this will mess up ordering if there are inner elements.
-    -- Typical bug include this case :
-    -- <div class="entry-body"><p>p1</p><p>p2</p><blockquote><p>q1</p></blockquote><p>p3</p>
-    -- Here, you'd expect p1-p2-q1-p3. What you'll get is : p1-p2-p3-q1
-    -- I'm unsure about what to do : lookup Scalpel and see why, or fix with a <|> solution.
-    -- Or maybe this will be fixed once I've decided  on the output, since I might take
-    -- HTML on anySelector rather than text on "p" only.
-    extractArticle = chroots ("div" @: [hasClass "entry-body"] // "p") (text anySelector)
+    extractContent :: Scraper String [String]
+    extractContent = chroots ("div" @: [hasClass "entry-body"] // "p") (text anySelector)
 
 -- | Anamorphism for scrapping
 anaScrap :: (ScrapingStep -> IO ([Post], ScrapingStep))
