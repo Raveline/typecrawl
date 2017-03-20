@@ -20,11 +20,8 @@ executable typecrawl
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.7 && <4.8,
-                       xml-conduit,
-                       html-conduit,
-                       http-conduit,
-                       bytestring,
                        text,
-                       filepath
+                       filepath,
+                       scalpel
   hs-source-dirs:      src
   default-language:    Haskell2010
