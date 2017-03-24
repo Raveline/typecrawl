@@ -17,6 +17,22 @@ data Post = Post Title Content deriving (Show)
 data ScrapingStep = Scrap Int (Maybe String) deriving (Show)
 
 
+-- | The meaty part. Given a URL, get all posts URL here.
+-- From these URL, go visit every post link and build
+-- posts from these steps.
+-- Then try and fetch the link to the next page. Keep
+-- track of how many pages we've read so our anamorphism
+-- knows when to stop.
+--
+-- NB: Of course, this is overkill in most case, since full
+-- articles might be displayed in the main pages, and there is
+-- no need to visit singular, individual blog post pages. But it might
+-- not always be the case, so let's play it safe.
+--
+-- Similarly, paging would typically follow a convention,
+-- e.g. "myblog.typepad.com/myblog/page/X/" where X is the page
+-- page number. But since I might want to adapt this for other
+-- websites / blog platforms, I prefer this more generic solution.
 postsOnPage :: Maybe Url -> Producer [Post] IO ()
 postsOnPage Nothing    = return ()
 postsOnPage (Just url) = do
@@ -74,47 +90,6 @@ extractArticle = do
     extractContent :: Scraper String [String]
     extractContent = chroots ("div" @: [hasClass "entry-body"] // "p") (text anySelector)
 
--- | Anamorphism for scrapping
--- Basically, apply unspool till finished, depending on state.
--- Some people way more clever than me suggest join . foldr,
--- I shall try that next.
-anaScrap :: (ScrapingStep -> IO ([Post], ScrapingStep))
-         -> (ScrapingStep -> Bool)
-         -> ScrapingStep
-         -> IO [Post]
-anaScrap unspool finished state =
-  if finished state
-     then return []
-     else do
-      -- value :: [Post]
-      (value, state') <- unspool state
-      -- new :: [Post]
-      new <- anaScrap unspool finished state'
-      return $ value ++ new
-
--- | The meaty part. Given a URL, get all posts URL here.
--- From these URL, go visit every post link and build
--- posts from these steps.
--- Then try and fetch the link to the next page. Keep
--- track of how many pages we've read so our anamorphism
--- knows when to stop.
---
--- NB: Of course, this is overkill in most case, since full
--- articles might be displayed in the main pages, and there is
--- no need to visit singular, individual blog post pages. But it might
--- not always be the case, so let's play it safe.
---
--- Similarly, paging would typically follow a convention,
--- e.g. "myblog.typepad.com/myblog/page/X/" where X is the page
--- page number. But since I might want to adapt this for other
--- websites / blog platforms, I prefer this more generic solution.
-readPageAndPosts :: ScrapingStep -> IO ([Post], ScrapingStep)
-readPageAndPosts (Scrap n (Just url)) = do
-  postsURL <- getLinks url
-  posts <- mapM getArticle (fromMaybe [] postsURL)
-  next <- scrapeURL url nextLink
-  return (catMaybes posts, Scrap (n+1) next)
-readPageAndPosts (Scrap n _) = return $ ([], Scrap (n+1) Nothing)
 
 -- | Starts the whole scrapping shenanigan.
 processSite :: Url -> Int -> IO [Post]
