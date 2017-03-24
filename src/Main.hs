@@ -6,6 +6,7 @@ import System.Environment
 import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
                           attr, attrs, Scraper, hasClass,
                           text, anySelector)
+import Pipes
 
 type Url = String
 type Title = T.Text
@@ -14,6 +15,16 @@ type Content = T.Text
 data Post = Post Title Content deriving (Show)
 
 data ScrapingStep = Scrap Int (Maybe String) deriving (Show)
+
+
+postsOnPage :: Maybe Url -> Producer [Post] IO ()
+postsOnPage Nothing    = return ()
+postsOnPage (Just url) = do
+    postsURL <- liftIO $ getLinks url
+    posts <- liftIO $ mapM getArticle (fromMaybe [] postsURL)
+    nextPage <- liftIO $ scrapeURL url nextLink
+    yield $ catMaybes posts
+    postsOnPage nextPage
 
 -- | Get all the links on a page
 getLinks :: Url -> IO (Maybe [Url])
