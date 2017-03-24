@@ -92,12 +92,8 @@ extractArticle = do
 
 
 -- | Starts the whole scrapping shenanigan.
-processSite :: Url -> Int -> IO [Post]
-processSite url steps = anaScrap readPageAndPosts goOnScrapping (Scrap 1 (Just url))
-  where
-    goOnScrapping :: ScrapingStep -> Bool
-    goOnScrapping (Scrap step (Just _)) = step > steps
-    goOnScrapping _ = False
+processSite :: Url -> Int -> IO ()
+processSite url steps = runEffect $ for (postsOnPage (Just url)) (lift . storeScrapped)
 
 -- | Placeholder for some magnificent serialization later.
 -- (Or at least, slightly more sophisticated than print)
@@ -111,6 +107,6 @@ main :: IO ()
 main = do args <- getArgs
           case args of
             []  -> error "Enter the base URL of a typepad blog."
-            [url] -> processSite url 1 >>= storeScrapped
-            [url, profound] -> processSite url (read profound) >>= storeScrapped
+            [url] -> processSite url 1
+            [url, profound] -> processSite url (read profound)
             _   -> error "Too many arguments."
