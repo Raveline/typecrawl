@@ -53,12 +53,12 @@ getLinks url = scrapeURL url extractPostLinks
 -- inside h3 blocks (post titles). This Scraper
 -- extracts every available link on a page.
 extractPostLinks :: Scraper String [Url]
-extractPostLinks =  attrs "href" $ ("h3" // "a")
+extractPostLinks =  attrs "href" $ "h3" // "a"
 
 -- | Typepad blogs typically paginates entries. Pagination links
 -- to the next page are available in spans with the "pager-right" class.
 nextLink :: Scraper String Url
-nextLink = attr "href" $ ("span" @: [hasClass "pager-right"] // "a")
+nextLink = attr "href" $ "span" @: [hasClass "pager-right"] // "a"
 
 -- | Read a single article on a single page
 getArticle :: Url -> IO (Maybe Post)
