@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Data.Maybe (fromMaybe, catMaybes)
 import System.Environment
 import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
@@ -15,9 +16,15 @@ type Content = T.Text
 -- We won't compute other these, we just display, so String is fine
 type Date = T.Text
 
-data Post = Post Title Date Content deriving (Show)
+data Post = Post Title Date Content
 
 data ScrapingStep = Scrap Int (Maybe String) deriving (Show)
+
+
+postToText :: Post -> T.Text
+postToText (Post t d c) = let title = T.concat ["<h2>", t, "</h2>"]
+                              date  = T.concat ["<div>", d, "</div>"]
+                          in T.unlines [title, date, c]
 
 
 -- | The meaty part. Given a URL, get all posts URL here.
@@ -107,7 +114,16 @@ processSite url steps = let
 -- | Placeholder for some magnificent serialization later.
 -- (Or at least, slightly more sophisticated than print)
 storeScrapped :: [Post] -> IO ()
-storeScrapped = print
+storeScrapped posts =
+  let mainContent = T.unlines . map postToText $ posts in
+    TIO.writeFile "test.html" . T.concat $ ["<html>",
+                                            "<head>",
+                                            "<meta charset='utf-8'/>",
+                                            "</head>",
+                                            "<body>",
+                                            mainContent,
+                                            "</body>",
+                                            "</html>"]
 
 -- | Bah, ugly !
 -- TODO: use cmdlib or something so I don't barf
