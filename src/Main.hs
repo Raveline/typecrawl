@@ -7,6 +7,7 @@ import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
                           attr, attrs, Scraper, hasClass,
                           text, anySelector)
 import Pipes
+import qualified Pipes.Prelude as P
 
 type Url = String
 type Title = T.Text
@@ -93,7 +94,10 @@ extractArticle = do
 
 -- | Starts the whole scrapping shenanigan.
 processSite :: Url -> Int -> IO ()
-processSite url steps = runEffect $ for (postsOnPage (Just url)) (lift . storeScrapped)
+processSite url steps = let
+  process :: Producer [Post] IO ()
+  process = postsOnPage (Just url) >-> P.take steps
+  in runEffect $ for process (lift . storeScrapped)
 
 -- | Placeholder for some magnificent serialization later.
 -- (Or at least, slightly more sophisticated than print)
