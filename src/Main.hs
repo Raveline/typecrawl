@@ -72,23 +72,8 @@ getArticle :: Url -> IO (Maybe Post)
 getArticle articleUrl = scrapeURL articleUrl extractArticle
 
 -- | Scrapper that shall read the content of a post.
--- This is rather crude because I'm not yet certain what kind
--- of output I'm looking for (raw texte or HTML ?).
--- The extractContent bit is messy and will fail at ordering properly.
--- Typical bug include this case :
---
--- <div class="entry-body">
---      <p>p1</p>
---      <p>p2</p>
---      <blockquote><p>q1</p></blockquote>
---      <p>p3</p>
--- </div>
---
--- Here, you'd expect p1-p2-q1-p3. What you'll get is : p1-p2-p3-q1
--- I'm unsure about what to do : lookup Scalpel and see why, or fix
--- with a <|> solution.
--- Or maybe this will be fixed once I've decided  on the output, since
--- I might take HTML on anySelector rather than text on "p" only.
+-- Note: we take everything that is in entry-body,
+-- which means that right now, imgs will also be picked.
 extractArticle :: Scraper String Post
 extractArticle = do
   title <- extractTitle
@@ -99,7 +84,7 @@ extractArticle = do
     extractTitle :: Scraper String String
     extractTitle = text $ "h3" @: [hasClass "entry-header"]
     extractContent :: Scraper String [String]
-    extractContent = chroots ("div" @: [hasClass "entry-body"] // "p") (html anySelector)
+    extractContent = chroots ("div" @: [hasClass "entry-body"]) (html anySelector)
     extractDate :: Scraper String String
     extractDate = text $ "h2" @: [hasClass "date-header"]
 
