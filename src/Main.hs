@@ -12,8 +12,10 @@ import qualified Pipes.Prelude as P
 type Url = String
 type Title = T.Text
 type Content = T.Text
+-- We won't compute other these, we just display, so String is fine
+type Date = T.Text
 
-data Post = Post Title Content deriving (Show)
+data Post = Post Title Date Content deriving (Show)
 
 data ScrapingStep = Scrap Int (Maybe String) deriving (Show)
 
@@ -84,12 +86,15 @@ extractArticle :: Scraper String Post
 extractArticle = do
   title <- extractTitle
   content <- extractContent
-  return $ Post (T.pack title) (T.unlines . map T.pack $ content)
+  date <- extractDate
+  return $ Post (T.pack title) (T.pack date) (T.unlines . map T.pack $ content)
   where
     extractTitle :: Scraper String String
     extractTitle = text $ "h3" @: [hasClass "entry-header"]
     extractContent :: Scraper String [String]
     extractContent = chroots ("div" @: [hasClass "entry-body"] // "p") (text anySelector)
+    extractDate :: Scraper String String
+    extractDate = text $ "h2" @: [hasClass "date-header"]
 
 
 -- | Starts the whole scrapping shenanigan.
