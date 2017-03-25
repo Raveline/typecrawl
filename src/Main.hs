@@ -6,7 +6,7 @@ import Data.Maybe (fromMaybe, catMaybes)
 import System.Environment
 import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
                           attr, attrs, Scraper, hasClass,
-                          text, anySelector)
+                          text, anySelector, html)
 import Pipes
 import qualified Pipes.Prelude as P
 
@@ -99,7 +99,7 @@ extractArticle = do
     extractTitle :: Scraper String String
     extractTitle = text $ "h3" @: [hasClass "entry-header"]
     extractContent :: Scraper String [String]
-    extractContent = chroots ("div" @: [hasClass "entry-body"] // "p") (text anySelector)
+    extractContent = chroots ("div" @: [hasClass "entry-body"] // "p") (html anySelector)
     extractDate :: Scraper String String
     extractDate = text $ "h2" @: [hasClass "date-header"]
 
