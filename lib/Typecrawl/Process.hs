@@ -13,8 +13,8 @@ import Typecrawl.Exporter
 -- making scrapping more parametrable, through a
 -- collection of commands (where to get nextPage,
 -- how to collect direct post links, etc.)
-processSite :: Url -> Int -> IO ()
-processSite url steps = let
+processSite :: Url -> FilePath -> Int -> IO ()
+processSite url dest steps = let
   process :: Producer [Post] IO ()
   process = postsOnPage (Just url) >-> P.take steps
-  in P.toListM process >>= storeScrapped . join
+  in P.toListM process >>= storeScrapped dest . join
