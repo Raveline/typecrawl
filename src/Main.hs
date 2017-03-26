@@ -2,6 +2,7 @@
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Control.Monad (join)
 import Data.Maybe (fromMaybe, catMaybes)
 import System.Environment
 import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
@@ -94,7 +95,7 @@ processSite :: Url -> Int -> IO ()
 processSite url steps = let
   process :: Producer [Post] IO ()
   process = postsOnPage (Just url) >-> P.take steps
-  in runEffect $ for process (lift . storeScrapped)
+  in P.toListM process >>= storeScrapped . join
 
 -- | Placeholder for some magnificent serialization later.
 -- (Or at least, slightly more sophisticated than print)
