@@ -2,21 +2,41 @@
 
 import Control.Monad (join)
 import System.Environment
+import Options.Applicative
+
 import Typecrawl.Process (processSite)
+import Typecrawl.Types (Url)
 
 
--- data TypeCrawl = TypeCrawl { url :: Url
---                           , output :: FilePath
---                           , steps :: Integer }
+data TypeCrawl = TypeCrawl { url :: Url
+                           , output :: FilePath
+                           , steps :: Int }
 
 
--- | Bah, ugly !
--- TODO: use cmdlib or something so I don't barf
--- everytime I see these lines.
+crawlCommand :: Parser TypeCrawl
+crawlCommand = TypeCrawl
+      <$> argument str
+         (metavar "URL"
+         <> help "Url of the blog to scrap" 
+         )
+      <*> argument str
+         (metavar "FILE"
+          <> help "Output")
+      <*> option auto
+          ( long "depth"
+         <> help "Number of pages to scrap"
+         <> showDefault
+         <> value 1
+         <> metavar "INT" )
+
+parser = info (crawlCommand <**> helper)
+  ( fullDesc 
+    <> progDesc "Scrap a typepad blog to build a local single html page"
+    <> header "Typecrawl - a basic typepad blog scrapper")
+
+
 main :: IO ()
-main = do args <- getArgs
-          case args of
-            []  -> error "Enter the base URL of a typepad blog."
-            [url] -> processSite url 1
-            [url, profound] -> processSite url (read profound)
-            _   -> error "Too many arguments."
+main = crawl =<< execParser parser
+
+crawl :: TypeCrawl -> IO ()
+crawl (TypeCrawl url output depth) = processSite url output depth
