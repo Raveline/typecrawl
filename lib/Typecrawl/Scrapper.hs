@@ -4,8 +4,7 @@ module Typecrawl.Scrapper (postsOnPage) where
 import Data.Maybe (fromMaybe, catMaybes)
 import qualified Data.Text as T
 import Pipes
-import Text.HTML.Scalpel (scrapeURL, chroots, (//), (@:),
-                          attr, attrs, Scraper, hasClass,
+import Text.HTML.Scalpel (Selector, Scraper, scrapeURL, chroots, attr, attrs,
                           text, anySelector, html)
 
 import Typecrawl.Types
@@ -26,48 +25,48 @@ import Typecrawl.Types
 -- e.g. "myblog.typepad.com/myblog/page/X/" where X is the page
 -- page number. But since I might want to adapt this for other
 -- websites / blog platforms, I prefer this more generic solution.
-postsOnPage :: Maybe Url -> Producer [Post] IO ()
-postsOnPage Nothing    = return ()
-postsOnPage (Just url) = do
-    postsURL <- liftIO $ getLinks url
-    posts <- liftIO $ mapM getArticle (fromMaybe [] postsURL)
-    nextPage <- liftIO $ scrapeURL url nextLink
+postsOnPage :: PlatformParseInstructions -> Maybe Url -> Producer [Post] IO ()
+postsOnPage _ Nothing    = return ()
+postsOnPage p@(Ppis nLink pLinks pis) (Just url) = do
+    postsURL <- liftIO $ getLinks url pLinks
+    posts <- liftIO $ mapM (flip getArticle pis) (fromMaybe [] postsURL)
+    nextPage <- liftIO $ scrapeURL url (nextLink' nLink)
     yield $ catMaybes posts
-    postsOnPage nextPage
+    postsOnPage p nextPage
 
 
 -- | Get all the links on a page
-getLinks :: Url -> IO (Maybe [Url])
-getLinks url = scrapeURL url extractPostLinks
+getLinks :: Url -> Selector -> IO (Maybe [Url])
+getLinks url = scrapeURL url . extractPostLinks
 
 -- | On a standard typepad-like blog, URL are
 -- inside h3 blocks (post titles). This Scraper
 -- extracts every available link on a page.
-extractPostLinks :: Scraper String [Url]
-extractPostLinks =  attrs "href" $ "h3" // "a"
+extractPostLinks :: Selector -> Scraper String [Url]
+extractPostLinks =  attrs "href"
 
 -- | Typepad blogs typically paginates entries. Pagination links
 -- to the next page are available in spans with the "pager-right" class.
-nextLink :: Scraper String Url
-nextLink = attr "href" $ "span" @: [hasClass "pager-right"] // "a"
+nextLink' :: Selector -> Scraper String Url
+nextLink' = attr "href"
 
 -- | Read a single article on a single page
-getArticle :: Url -> IO (Maybe Post)
-getArticle articleUrl = scrapeURL articleUrl extractArticle
+getArticle :: Url -> PostInstructions -> IO (Maybe Post)
+getArticle articleUrl = scrapeURL articleUrl . extractArticle
 
 -- | Scrapper that shall read the content of a post.
 -- Note: we take everything that is in entry-body,
 -- which means that right now, imgs will also be picked.
-extractArticle :: Scraper String Post
-extractArticle = do
-  title <- extractTitle
-  content <- extractContent
-  date <- extractDate
+extractArticle :: PostInstructions -> Scraper String Post
+extractArticle (Pis iT iD iC) = do
+  title <- extractTitle iT
+  content <- extractContent iC
+  date <- extractDate iD
   return $ Post (T.pack title) (T.pack date) (T.unlines . map T.pack $ content)
   where
-    extractTitle :: Scraper String String
-    extractTitle = text $ "h3" @: [hasClass "entry-header"]
-    extractContent :: Scraper String [String]
-    extractContent = chroots ("div" @: [hasClass "entry-body"]) (html anySelector)
-    extractDate :: Scraper String String
-    extractDate = text $ "h2" @: [hasClass "date-header"]
+    extractTitle :: Selector -> Scraper String String
+    extractTitle = text
+    extractContent :: Selector -> Scraper String [String]
+    extractContent sel = chroots sel (html anySelector)
+    extractDate :: Selector -> Scraper String String
+    extractDate = text
