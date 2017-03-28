@@ -20,6 +20,7 @@ library
                      , Typecrawl.Types
                      , Typecrawl.Exporter
                      , Typecrawl.Scrapper
+                     , Typecrawl.Platforms
    build-depends:      base >= 4.7 && <4.8
                       ,pipes==4.1.6
                       ,text
