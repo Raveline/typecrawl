@@ -5,7 +5,7 @@ import Data.Maybe (fromMaybe, catMaybes)
 import qualified Data.Text as T
 import Pipes
 import Text.HTML.Scalpel (Selector, Scraper, scrapeURL, chroots, attr, attrs,
-                          text, anySelector, html)
+                          text, anySelector, innerHTML)
 
 import Typecrawl.Types
 
@@ -67,6 +67,6 @@ extractArticle (Pis iT iD iC) = do
     extractTitle :: Selector -> Scraper String String
     extractTitle = text
     extractContent :: Selector -> Scraper String [String]
-    extractContent sel = chroots sel (html anySelector)
+    extractContent sel = chroots sel (innerHTML anySelector)
     extractDate :: Selector -> Scraper String String
     extractDate = text
