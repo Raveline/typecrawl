@@ -28,12 +28,12 @@ import Typecrawl.Types
 postsOnPage :: PlatformParseInstructions -> Maybe Url -> Producer [Post] IO ()
 postsOnPage _ Nothing    = return ()
 postsOnPage p@(Ppis nLink pLinks pis) (Just url) = do
+    liftIO $ putStrLn $ "Parsing page :" ++ url
     postsURL <- liftIO $ getLinks url pLinks
     posts <- liftIO $ mapM (`getArticle` pis) (fromMaybe [] postsURL)
     nextPage <- liftIO $ scrapeURL url (nextLink' nLink)
     yield $ catMaybes posts
     postsOnPage p nextPage
-
 
 -- | Get all the links on a page
 getLinks :: Url -> Selector -> IO (Maybe [Url])
