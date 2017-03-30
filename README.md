@@ -23,6 +23,9 @@ If you're running through stack exec, remember the syntax for args:
 
 Or the --depth parameter won't be properly parsed.
 
+If you don't specify depth, the WHOLE blog will be parsed. *Caveat*, right now,
+very long blogs might make the writing part crash.
+
 Blogs usually have a chronological presentation of posts. The logic behind
 this scrapper is to visit each page, take all post links available, then
 look for the link to the next page, and iterate as much time as the
@@ -42,10 +45,7 @@ Pipes. There are probably several instances where this script does not work.
 
 But I'd love to improve it in several ways :
 
-- Currently, images are not downloaded. This is probably the feature I'd like to
-  add first.
-
-- Be able to scrap the *whole* blog. (Pretty easy to do)
+- Currently, images are not downloaded.
 
 - It's fairly slow right now, mostly because my curl calls are sequential.
   Multithreading this would be cool. (I have no idea how to do this in Haskell,
