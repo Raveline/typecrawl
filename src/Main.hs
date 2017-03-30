@@ -7,9 +7,10 @@ import Options.Applicative
 import Typecrawl.Process (processSite)
 import Typecrawl.Types (Url, PlatformParseInstructions)
 import Typecrawl.Platforms
+import Text.Read
 
 
-data TypeCrawl = TypeCrawl Url PlatformParseInstructions FilePath Int
+data TypeCrawl = TypeCrawl Url PlatformParseInstructions FilePath (Maybe Int)
 
 
 crawlCommand :: Parser TypeCrawl
@@ -23,11 +24,10 @@ crawlCommand = TypeCrawl
       <*> argument str
          ( metavar "FILE"
         <> help "Output")
-      <*> option auto
+      <*> option readDepth
          ( long "depth"
+        <> value Nothing
         <> help "Number of pages to scrap"
-        <> showDefault
-        <> value 1
         <> metavar "INT")
 
 
@@ -38,6 +38,9 @@ scrappers = [ ("blogger", blogger)
 
 potentialScrappers :: String
 potentialScrappers = join . intersperse "|" . map fst $ scrappers
+
+readDepth :: ReadM (Maybe Int)
+readDepth = str >>= pure . readMaybe
 
 readScrapper :: ReadM PlatformParseInstructions
 readScrapper = str >>= lookupOrError

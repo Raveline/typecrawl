@@ -13,8 +13,9 @@ import Typecrawl.Exporter
 -- making scrapping more parametrable, through a
 -- collection of commands (where to get nextPage,
 -- how to collect direct post links, etc.)
-processSite :: PlatformParseInstructions -> Url -> FilePath -> Int -> IO ()
+processSite :: PlatformParseInstructions -> Url -> FilePath -> Maybe Int -> IO ()
 processSite ppis url dest steps = let
-  process :: Producer [Post] IO ()
-  process = postsOnPage ppis (Just url) >-> P.take steps
-  in P.toListM process >>= storeScrapped dest . join
+  process (Just depth) = process' >-> P.take depth
+  process Nothing = process'
+  process' = postsOnPage ppis (Just url)
+  in P.toListM (process steps) >>= storeScrapped dest . join
