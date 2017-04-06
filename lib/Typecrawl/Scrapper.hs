@@ -43,13 +43,13 @@ getLinks url = scrapeURL url . extractPostLinks
 -- | On a standard typepad-like blog, URL are
 -- inside h3 blocks (post titles). This Scraper
 -- extracts every available link on a page.
-extractPostLinks :: Selector -> Scraper String [Url]
-extractPostLinks =  attrs "href"
+extractPostLinks :: Selector -> Scraper T.Text [Url]
+extractPostLinks =  (fmap .fmap) T.unpack . attrs "href"
 
 -- | Typepad blogs typically paginates entries. Pagination links
 -- to the next page are available in spans with the "pager-right" class.
-nextLink' :: Selector -> Scraper String Url
-nextLink' = attr "href"
+nextLink' :: Selector -> Scraper T.Text Url
+nextLink' = fmap T.unpack . attr "href"
 
 -- | Read a single article on a single page
 getArticle :: Url -> PostInstructions -> IO (Maybe Post)
@@ -58,12 +58,12 @@ getArticle articleUrl = scrapeURL articleUrl . extractArticle
 -- | Scrapper that shall read the content of a post.
 -- Note: we take everything that is in entry-body,
 -- which means that right now, imgs will also be picked.
-extractArticle :: PostInstructions -> Scraper String Post
+extractArticle :: PostInstructions -> Scraper T.Text Post
 extractArticle (Pis iT iD iC) = let
-    extractTitle :: Selector -> Scraper String T.Text
-    extractTitle = fmap T.pack . text
-    extractContent :: Selector -> Scraper String T.Text
-    extractContent sel = (T.unlines . map T.pack) <$> chroots sel (innerHTML anySelector)
-    extractDate :: Selector -> Scraper String T.Text
-    extractDate = fmap T.pack . text
+    extractTitle :: Selector -> Scraper T.Text T.Text
+    extractTitle = text
+    extractContent :: Selector -> Scraper T.Text T.Text
+    extractContent sel = T.unlines <$> chroots sel (innerHTML anySelector)
+    extractDate :: Selector -> Scraper T.Text T.Text
+    extractDate = text
     in Post <$> extractTitle iT <*> extractDate iD <*> extractContent iC
