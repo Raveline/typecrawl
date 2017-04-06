@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Typecrawl.Scrapper (postsOnPage) where
 
+import Control.Applicative
 import Data.Maybe (fromMaybe, catMaybes)
 import qualified Data.Text as T
 import Pipes
@@ -58,15 +59,11 @@ getArticle articleUrl = scrapeURL articleUrl . extractArticle
 -- Note: we take everything that is in entry-body,
 -- which means that right now, imgs will also be picked.
 extractArticle :: PostInstructions -> Scraper String Post
-extractArticle (Pis iT iD iC) = do
-  title <- extractTitle iT
-  content <- extractContent iC
-  date <- extractDate iD
-  return $ Post (T.pack title) (T.pack date) (T.unlines . map T.pack $ content)
-  where
-    extractTitle :: Selector -> Scraper String String
-    extractTitle = text
-    extractContent :: Selector -> Scraper String [String]
-    extractContent sel = chroots sel (innerHTML anySelector)
-    extractDate :: Selector -> Scraper String String
-    extractDate = text
+extractArticle (Pis iT iD iC) = let
+    extractTitle :: Selector -> Scraper String T.Text
+    extractTitle = fmap T.pack . text
+    extractContent :: Selector -> Scraper String T.Text
+    extractContent sel = (T.unlines . map T.pack) <$> chroots sel (innerHTML anySelector)
+    extractDate :: Selector -> Scraper String T.Text
+    extractDate = fmap T.pack . text
+    in Post <$> extractTitle iT <*> extractDate iD <*> extractContent iC
