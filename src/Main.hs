@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Control.Monad (join)
-import Data.List (intersperse)
+import Data.List (intercalate)
 import Options.Applicative
-
 import Typecrawl.Process (processSite)
 import Typecrawl.Types (Url, PlatformParseInstructions)
 import Typecrawl.Platforms
@@ -37,7 +35,7 @@ scrappers = [ ("blogger", blogger)
             , ("typepad", typepad)]
 
 potentialScrappers :: String
-potentialScrappers = join . intersperse "|" . map fst $ scrappers
+potentialScrappers = intercalate "|" . map fst $ scrappers
 
 readDepth :: ReadM (Maybe Int)
 readDepth = str >>= pure . readMaybe
